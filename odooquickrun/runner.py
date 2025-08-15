@@ -19,9 +19,10 @@ def get_addons_path():
     ]
 
     custom_addons = []
+    ignore_folder_names = [".git"]
     if addons_root.exists():
         for sub in addons_root.iterdir():
-            if sub.is_dir():
+            if sub.is_dir() and sub.name not in ignore_folder_names:
                 custom_addons.append(str(sub.resolve()))
 
     paths = custom_addons + [str(p.resolve()) for p in odoo_addons if p.exists()]

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: odooquickrun
-Version: 1.0.0
+Version: 1.0.1
 Summary: Runner tool to run Odoo project using pew virtualenvs
 Home-page: https://github.com/phuctranfxvn/odooquickrun
 Author: Phuc (Tran Thanh)
@@ -32,7 +32,7 @@ A simple command-line tool to manage Odoo projects using a **pew-managed virtual
 Install directly from GitHub:
 
 ```bash
-pip install git+https://github.com/phuctranfxvn/odooquickrun.git
+pip install odooquickrun
 ```
 
 ## ❌ Uninstallation
