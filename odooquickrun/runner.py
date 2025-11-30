@@ -4,9 +4,8 @@ import sys
 import os
 from pathlib import Path
 from contextlib import contextmanager
-from odooquickrun.__version__ import __version__
 from .db import run_db_info, run_db_create_user, run_db_list_users, run_db_drop_user, run_db_drop
-
+from .version import show_detailed_version
 
 def get_project_name():
     return Path.cwd().name
@@ -107,10 +106,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Odoo project runner with pew env context")
     parser.add_argument(
-        "-v", "--version",
-        action="version",
-        version=f"%(prog)s {__version__}"
-    )
+            "-v", "--version",
+            action="store_true",
+            help="Show detailed version and author information"
+        )
+
     subparsers = parser.add_subparsers(dest="command")
 
     # --- START / START WITH DEBUG ---
@@ -163,6 +163,9 @@ def main():
 
     args = parser.parse_args()
 
+    if args.version:
+        show_detailed_version()
+        sys.exit(0)
     if args.command == "start":
         run_odoo_command([])
     elif args.command == "debug":

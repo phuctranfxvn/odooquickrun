@@ -3,7 +3,9 @@ README.md
 setup.py
 odooquickrun/__init__.py
 odooquickrun/__version__.py
+odooquickrun/db.py
 odooquickrun/runner.py
+odooquickrun/version.py
 odooquickrun.egg-info/PKG-INFO
 odooquickrun.egg-info/SOURCES.txt
 odooquickrun.egg-info/dependency_links.txt
