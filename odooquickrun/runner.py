@@ -5,9 +5,12 @@ import os
 from pathlib import Path
 from contextlib import contextmanager
 from odooquickrun.__version__ import __version__
+from .db import run_db_info, run_db_create_user, run_db_list_users, run_db_drop_user, run_db_drop
+
 
 def get_project_name():
     return Path.cwd().name
+
 
 def get_addons_path():
     base = Path.cwd()
@@ -25,21 +28,28 @@ def get_addons_path():
             if sub.is_dir() and sub.name not in ignore_folder_names:
                 custom_addons.append(str(sub.resolve()))
 
-    paths = custom_addons + [str(p.resolve()) for p in odoo_addons if p.exists()]
+    paths = custom_addons + [str(p.resolve())
+                             for p in odoo_addons if p.exists()]
     return ",".join(paths)
+
 
 def get_config_path():
     config_folder = Path.cwd() / 'config'
     local_conf = config_folder / 'local.conf'
     dev_conf = config_folder / 'dev.conf'
+    server_conf = config_folder / 'server.conf'
 
     if local_conf.exists():
         return str(local_conf.resolve())
     elif dev_conf.exists():
         return str(dev_conf.resolve())
+    elif server_conf.exist():
+        return str(server_conf.resolve())
     else:
-        print("❌ Unable to find local.conf or dev.conf in the folder ./config/")
+        print(
+            "❌ Unable to find local.conf / dev.conf / server.conf in the folder ./config/")
         sys.exit(1)
+
 
 @contextmanager
 def in_env(name):
@@ -62,6 +72,7 @@ def in_env(name):
     finally:
         os.environ.clear()
         os.environ.update(old_env)
+
 
 def run_odoo_command(args_list, debug=False):
     project_name = get_project_name()
@@ -87,11 +98,14 @@ def run_odoo_command(args_list, debug=False):
     with in_env(project_name):
         ret = subprocess.run(cmd)
         if ret.returncode != 0:
-            print(f"❌ Unable to start due to following error code: {ret.returncode}")
+            print(
+                f"❌ Unable to start due to following error code: {ret.returncode}")
             sys.exit(ret.returncode)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Odoo project runner with pew env context")
+    parser = argparse.ArgumentParser(
+        description="Odoo project runner with pew env context")
     parser.add_argument(
         "-v", "--version",
         action="version",
@@ -99,11 +113,53 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command")
 
-    parser_start = subparsers.add_parser("start", help="Start Odoo server")
-    parser_debug = subparsers.add_parser("debug", help="Start Odoo server in debug mode (Debug port: 5678)")
-    parser_upgrade = subparsers.add_parser("upgrade", help="Upgrade Odoo modules")
-    parser_upgrade.add_argument("-d", "--database", required=True, help="Database name")
-    parser_upgrade.add_argument("-m", "--modules", required=True, help="Comma-separated module names")
+    # --- START / START WITH DEBUG ---
+    subparsers.add_parser("start", help="Start Odoo server")
+    subparsers.add_parser(
+        "debug", help="Start Odoo server in debug mode (Debug port: 5678)")
+
+    # --- UPGRADE ODOO ---
+    parser_upgrade = subparsers.add_parser(
+        "upgrade", help="Upgrade Odoo modules")
+    parser_upgrade.add_argument(
+        "-d", "--database", required=True, help="Database name")
+    parser_upgrade.add_argument(
+        "-m", "--modules", required=True, help="Comma-separated module names")
+
+    # --- DB ---
+    parser_db = subparsers.add_parser("db", help="Database operations")
+    parser_db.add_argument("--db-port", default="5432",
+                           help="PostgreSQL Port (default: 5432)")
+    db_subparsers = parser_db.add_subparsers(dest="db_command")
+
+    # --- DB INFO ---
+    db_subparsers.add_parser("info", help="List all databases with size info")
+
+    # --- DB DROP ---
+    parser_drop = db_subparsers.add_parser(
+        "drop", help="Delete one or more databases")
+    parser_drop.add_argument(
+        "databases", help="Database names (comma-separated, e.g., db1,db2)")
+    parser_drop.add_argument(
+        "-f", "--force", action="store_true", help="Force delete without confirmation")
+
+    # --- DB CREATE USER ---
+    parser_create_user = db_subparsers.add_parser(
+        "create_user", help="Create a new database user")
+    parser_create_user.add_argument(
+        "username", help="Username for the new DB user")
+    parser_create_user.add_argument(
+        "password", help="Password for the new DB user")
+
+    # --- DB LISTING USERS ---
+    db_subparsers.add_parser("users", help="List all database users/roles")
+
+    # --- DB DROP USER ---
+    parser_drop_user = db_subparsers.add_parser(
+        "drop_user", help="Delete a database user")
+    parser_drop_user.add_argument("username", help="Username to delete")
+    parser_drop_user.add_argument(
+        "-f", "--force", action="store_true", help="Force delete without confirmation")
 
     args = parser.parse_args()
 
@@ -113,8 +169,22 @@ def main():
         run_odoo_command([], debug=True)
     elif args.command == "upgrade":
         run_odoo_command(["-d", args.database, "-u", args.modules])
+    elif args.command == "db":
+        if args.db_command == "info":
+            run_db_info(args.db_port)
+        elif args.db_command == "drop":
+            run_db_drop(args.db_port, args.databases, args.force)
+        elif args.db_command == "create_user":
+            run_db_create_user(args.db_port, args.username, args.password)
+        elif args.db_command == "users":
+            run_db_list_users(args.db_port)
+        elif args.db_command == "drop_user":
+            run_db_drop_user(args.db_port, args.username, args.force)
+        else:
+            parser_db.print_help()
     else:
         parser.print_help()
+
 
 def runner():
     main()
