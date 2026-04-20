@@ -4,8 +4,11 @@ import sys
 import os
 from pathlib import Path
 from contextlib import contextmanager
-from .db import run_db_info, run_db_create_user, run_db_list_users, run_db_drop_user, run_db_drop
+from .db import run_db_info, run_db_create_user, run_db_list_users, run_db_drop_user, run_db_drop, run_db_clean
 from .version import show_detailed_version
+from .detector import detect_project_type, print_detected_type, PROJECT_TYPE_ODOOSH
+from .odoosh import run_odoosh_command, run_odoosh_upgrade
+from .scaffold import run_init_project
 
 def get_project_name():
     return Path.cwd().name
@@ -126,6 +129,18 @@ def main():
     parser_upgrade.add_argument(
         "-m", "--modules", required=True, help="Comma-separated module names")
 
+    # --- INIT PROJECT ---
+    parser_init = subparsers.add_parser(
+        "init", help="Scaffold a new Odoo project")
+    parser_init.add_argument(
+        "project_name", help="Name of the project to create")
+    parser_init.add_argument(
+        "-v", "--version", default="19.0", dest="odoo_version",
+        help="Odoo version branch to clone (default: 19.0)")
+    parser_init.add_argument(
+        "--no-squash", action="store_true", dest="no_squash",
+        help="Clone full git history instead of shallow (depth=1)")
+
     # --- DB ---
     parser_db = subparsers.add_parser("db", help="Database operations")
     parser_db.add_argument("--db-port", default="5432",
@@ -161,17 +176,42 @@ def main():
     parser_drop_user.add_argument(
         "-f", "--force", action="store_true", help="Force delete without confirmation")
 
+    # --- DB CLEAN ---
+    parser_clean = db_subparsers.add_parser(
+        "clean", help="Execute a SQL cleaning script on a database")
+    parser_clean.add_argument(
+        "database", help="Database name to run the script on")
+    parser_clean.add_argument(
+        "-f", "--file", required=True, dest="sql_file",
+        help="Path to the SQL file to execute")
+    parser_clean.add_argument(
+        "--force", action="store_true", help="Skip confirmation prompt")
+
     args = parser.parse_args()
 
     if args.version:
         show_detailed_version()
         sys.exit(0)
+
+    # Auto-detect project type
+    project_type = detect_project_type()
+    print_detected_type(project_type)
+
     if args.command == "start":
-        run_odoo_command([])
+        if project_type == PROJECT_TYPE_ODOOSH:
+            run_odoosh_command([])
+        else:
+            run_odoo_command([])
     elif args.command == "debug":
-        run_odoo_command([], debug=True)
+        if project_type == PROJECT_TYPE_ODOOSH:
+            run_odoosh_command([], debug=True)
+        else:
+            run_odoo_command([], debug=True)
     elif args.command == "upgrade":
-        run_odoo_command(["-d", args.database, "-u", args.modules])
+        if project_type == PROJECT_TYPE_ODOOSH:
+            run_odoosh_upgrade(args.database, args.modules)
+        else:
+            run_odoo_command(["-d", args.database, "-u", args.modules])
     elif args.command == "db":
         if args.db_command == "info":
             run_db_info(args.db_port)
@@ -183,8 +223,12 @@ def main():
             run_db_list_users(args.db_port)
         elif args.db_command == "drop_user":
             run_db_drop_user(args.db_port, args.username, args.force)
+        elif args.db_command == "clean":
+            run_db_clean(args.db_port, args.database, args.sql_file, args.force)
         else:
             parser_db.print_help()
+    elif args.command == "init":
+        run_init_project(args.project_name, args.odoo_version, args.no_squash)
     else:
         parser.print_help()
 

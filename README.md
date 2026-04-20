@@ -22,6 +22,27 @@ pip uninstall odooquickrun
 
 **Prerequisite:** Ensure you have created and activated the `pew` virtual environment for your project before running these commands.
 
+### 📋 Init a New Project
+
+Scaffold a new Odoo project with the standard layout and clone Odoo source code.
+```bash
+odooquickrun init <project_name> [-v <version>] [--no-squash]
+```
+* `-v` / `--version`: Odoo version branch to clone (default: `19.0`).
+* `--no-squash`: Clone full git history instead of shallow (depth=1).
+
+This creates:
+```text
+<project_name>/
+├── addons/requirements.txt
+├── config/dev.conf
+├── project/requirements.txt
+├── odoo/              ← cloned from GitHub
+└── .gitignore
+```
+
+---
+
 ### 🖥️ Odoo Server Operations
 
 **Start Odoo**
@@ -42,8 +63,6 @@ odooquickrun upgrade -d <db_name> -m <module1,module2,...>
 ```
 * `-d`: Database name.
 * `-m`: Comma-separated list of modules to upgrade.
-
----
 
 ### 🗄️ Database Operations
 
@@ -85,6 +104,16 @@ Permanently delete a postgres user/role.
 odooquickrun db drop_user <username> [-f]
 ```
 
+#### 3. Database Cleaning
+
+**Execute a SQL cleaning script**
+Run a `.sql` file against a database (e.g., for data anonymization or cleanup).
+```bash
+odooquickrun db clean <database> -f <path/to/file.sql> [--force]
+```
+* `-f` / `--file`: Path to the SQL file to execute (required).
+* `--force`: Skip confirmation prompt.
+
 ---
 
 ## 📁 Project Structure
@@ -116,6 +145,45 @@ This CLI is designed to be used inside a [pew](https://github.com/berdario/pew)-
 
 #### Notes:
 - You don't need to specify the `addons_path` in the `.conf` file; the script will automatically calculate and prepare it for you based on the folder structure above.
+
+## 🔄 odoo.sh Project Support
+
+`odooquickrun` **automatically detects** whether your project uses the standard layout or an **odoo.sh** setup.
+
+### Detection Logic
+
+- If `config.sh` exists in the project root → **odoo.sh mode**
+- Otherwise → **regular mode** (standard layout)
+
+### odoo.sh Project Structure
+
+```text
+<project_root>/
+├── config.sh                  # Project configuration (REQUIRED for detection)
+├── odoo.sh                    # Original launcher (optional, not used by odooquickrun)
+├── Makefile                   # Optional
+└── <project_dirs>/            # Custom modules (referenced by PROJECT_DIRS)
+    ├── module_a/
+    └── module_b/
+```
+
+### config.sh Variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `VERSION` | Odoo version (e.g., `17.0`) | Required |
+| `PROJECT` | Project name | Directory name |
+| `PROJECT_DIRS` | Path(s) to custom addons | — |
+| `VENV` | Virtualenv name | `venv-odoo{VERSION}` |
+| `DB` | Database name | `v{VERSION}{e/c}_{PROJECT}` |
+| `IP` | Listen address | `127.0.0.1` |
+| `HTTP_PORT` | Listen port | `8069` |
+| `ODOO_ROOT_DIR` | Root dir for Odoo source | `~/code/odoo` |
+| `EXTRA_ADDONS_PATH` | Additional addons paths | — |
+| `EXTRA_PARAMS` | Extra odoo-bin parameters | — |
+| `ENTERPRISE` | Enable enterprise (`1`/`0`) | `1` |
+
+---
 
 ## 🛠 Requirements
 

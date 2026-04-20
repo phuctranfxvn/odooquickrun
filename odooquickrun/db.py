@@ -1,4 +1,5 @@
 import sys
+import os
 import subprocess
 
 
@@ -292,3 +293,51 @@ def run_db_drop(port, db_names_str, force=False):
         except FileNotFoundError:
             print("❌ Command 'psql' not found.")
             sys.exit(1)
+
+
+def run_db_clean(port, database, sql_file, force=False):
+    """
+    Execute a SQL cleaning script against a database.
+    Usage: odooquickrun db clean <database> -f <path_to_file.sql>
+    """
+    # 1. Validate SQL file exists
+    sql_path = os.path.abspath(sql_file)
+    if not os.path.isfile(sql_path):
+        print(f"❌ SQL file not found: {sql_path}")
+        sys.exit(1)
+
+    # 2. Confirm
+    if not force:
+        print(f"⚠️  You are about to execute the following SQL script:")
+        print(f"   📄 File: {sql_path}")
+        print(f"   🗃️  Database: {database}")
+        print(f"   🔌 Port: {port}")
+        confirm = input("❓ Are you sure you want to continue? (y/N): ")
+        if confirm.lower() != 'y':
+            print("🚫 Operation cancelled.")
+            return
+
+    print(f"▶️ Executing SQL script on '{database}' (localhost:{port})...")
+    print(f"   📄 {sql_path}")
+
+    cmd = [
+        "psql",
+        "-h", "localhost",
+        "-p", str(port),
+        "-d", database,
+        "-f", sql_path,
+        "-v", "ON_ERROR_STOP=1",  # Stop on first error
+    ]
+
+    try:
+        result = subprocess.run(cmd, text=True)
+
+        if result.returncode == 0:
+            print(f"\n✅ SQL script executed successfully on '{database}'!")
+        else:
+            print(f"\n❌ SQL script failed with exit code: {result.returncode}")
+            sys.exit(result.returncode)
+
+    except FileNotFoundError:
+        print("❌ Command 'psql' not found. Please ensure PostgreSQL client tools are installed.")
+        sys.exit(1)
